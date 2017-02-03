@@ -1,0 +1,142 @@
+#!/bin/bash
+
+set -e
+
+stress_test_branch=circleci-stress-testing-201701
+
+command=$1
+arg1=$2
+arg2=$3
+arg3=$4
+
+function _jq() {
+    jq --raw-output "$@"
+}
+
+function post-build() {
+    local repo=$1
+    local sha=$2
+
+    local build_url=$(curl --silent \
+         -XPOST \
+         -d revision=$sha \
+         -u ${CIRCLE_TOKEN}: \
+         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch | _jq .build_url)
+
+    echo "Running: $build_url"
+}
+
+function running-builds() {
+    local repo=$1
+
+    curl --silent \
+         -u ${CIRCLE_TOKEN}: \
+         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch | _jq 'map(select(.status == "running"))'
+}
+
+function count-running-builds() {
+    local repo=$1
+
+    running-builds $repo | _jq 'length'
+}
+
+function start() {
+    local repo=$arg1
+    local sha=$arg2
+    local num=$arg3
+
+    if [ -z $repo ]; then
+        echo "You need to specify repo"
+        exit 1
+    fi
+
+    if [ -z $sha ]; then
+        echo "You need to specify sha"
+        exit 1
+    fi
+
+    if [ -z $num ]; then
+        echo "You need to specify number of builds to run"
+        exit 1
+    fi
+
+    echo "Start stress test"
+
+    for i in $(eval echo "{1..$num}"); do
+        post-build $repo $sha
+    done
+
+    sleep 5
+
+    while true; do
+        local running_count=$(count-running-builds $repo)
+        local gap=$(expr $num - $running_count)
+
+        if [ $gap -gt 0 ]; then
+            echo "" # To insert a new line after dot progress bar
+
+            for i in $(eval echo "{1..$gap}"); do
+                post-build $repo $sha
+            done
+        fi
+
+        echo -n "."
+        sleep 3
+    done
+}
+
+function cancel_build() {
+    local build_url=$1
+    local repo=$(echo $build_url | awk -F/ '{print $5"/"$6}')
+    local build_num=$(echo $build_url | awk -F/ '{print $7}')
+
+    curl --silent \
+         -XPOST \
+         -u ${CIRCLE_TOKEN}: \
+         https://circleci.com/api/v1/project/$repo/$build_num/cancel >/dev/null 2>&1
+
+    if [ $? -eq 0 ]; then
+        echo "Successfully canceled: $build_url"
+    else
+        echo "Failed cancel: $build_url"
+    fi
+}
+
+function cancel() {
+    local repo=$arg1
+
+    if [ -z $repo ]; then
+        echo "You need to specify repo"
+        exit 1
+    fi
+
+    local json=$(running-builds $repo)
+    local len=$(echo $json | _jq 'length')
+
+    if [ $len -gt 0 ]; then
+        for i in $( seq 0 $(($len - 1)) ); do
+            build_url=$(echo $json | _jq .[$i] | _jq .build_url)
+            cancel_build $build_url
+        done
+    else
+        echo "No running stress test builds for $repo"
+    fi
+}
+
+function help() {
+    echo "No subcommand given"
+    echo ""
+    echo 'stress-test start $repo $sha $num_of_builds_to_keep_running'
+    echo 'stress-test cancel $repo'
+}
+
+if [ -z $CIRCLE_TOKEN ]; then
+    echo '$CIRCLE_TOKEN must be set'
+    exit 1
+fi
+
+case $command in
+    start ) start ;;
+    cancel  ) cancel  ;;
+    * ) help ;;
+esac
