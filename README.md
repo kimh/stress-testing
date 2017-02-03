@@ -1,3 +1,12 @@
+## Requirement
+
+Recent versions of 
+
+- curl
+- jq
+
+Only tested on Mac.
+
 ## Usage
 ```
 Usage: stress-test $sub_command $args"
