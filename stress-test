@@ -40,7 +40,7 @@ function count-running-builds() {
     running-builds $repo | _jq 'length'
 }
 
-function start() {
+function run() {
     local repo=$arg1
     local sha=$arg2
     local num=$arg3
@@ -124,10 +124,13 @@ function cancel() {
 }
 
 function help() {
-    echo "No subcommand given"
-    echo ""
-    echo 'stress-test start $repo $sha $num_of_builds_to_keep_running'
-    echo 'stress-test cancel $repo'
+    cat <<'EOF'
+Usage: stress-test $sub_command $args"
+
+Subcommands:
+  run $repo $sha $num_of_builds_to_keep_running
+  cancel $repo
+EOF
 }
 
 if [ -z $CIRCLE_TOKEN ]; then
@@ -136,7 +139,7 @@ if [ -z $CIRCLE_TOKEN ]; then
 fi
 
 case $command in
-    start ) start ;;
+    run ) run ;;
     cancel  ) cancel  ;;
     * ) help ;;
 esac
