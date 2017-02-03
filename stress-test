@@ -125,7 +125,7 @@ function cancel() {
 
 function help() {
     cat <<'EOF'
-Usage: stress-test $sub_command $args"
+Usage: stress-test $sub_command $args
 
 Subcommands:
   run $repo $sha $num_of_builds_to_keep_running
