@@ -9,6 +9,8 @@ Subcommands:
 
 ## Example
 
+Running stress testng builds
+
 ```
 bash-4.4$ ./stress-test run kimh/picard-test 502a881f 3
 Start stress test
@@ -21,6 +23,8 @@ Running: https://circleci.com/gh/kimh/picard-test/487
 Running: https://circleci.com/gh/kimh/picard-test/488
 .....
 ```
+
+Cancelling all stress testing builds
 
 ```
 bash-4.4$ ./stress-test cancel kimh/picard-test
