@@ -3,6 +3,8 @@
 set -e
 
 stress_test_branch=circleci-stress-testing-201701
+check_interval=30
+wait_after_run=10
 
 command=$1
 arg1=$2
@@ -26,19 +28,20 @@ function post-build() {
     echo "Running: $build_url"
 }
 
-function running-builds() {
+function running-or-queued-builds() {
     local repo=$1
 
     curl --silent \
          -u ${CIRCLE_TOKEN}: \
-         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch | _jq 'map(select(.status == "running"))'
+         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch | _jq 'map(select(.status == "running" or .status == "queued"))'
 }
 
-function count-running-builds() {
+function count-running-or-queued-builds() {
     local repo=$1
 
-    running-builds $repo | _jq 'length'
+    running-or-queued-builds $repo | _jq 'length'
 }
+
 
 function run() {
     local repo=$arg1
@@ -65,11 +68,20 @@ function run() {
     for i in $(eval echo "{1..$num}"); do
         post-build $repo $sha
     done
+}
 
-    sleep 5
+function run-keep() {
+    local repo=$arg1
+    local sha=$arg2
+    local num=$arg3
+
+    run $repo $sha $num
+
+    echo "Waiting $wait_after_run sec until all builds get queued..."
+    sleep $wait_after_run
 
     while true; do
-        local running_count=$(count-running-builds $repo)
+        local running_count=$(count-running-or-queued-builds $repo)
         local gap=$(expr $num - $running_count)
 
         if [ $gap -gt 0 ]; then
@@ -81,7 +93,7 @@ function run() {
         fi
 
         echo -n "."
-        sleep 3
+        sleep $check_interval
     done
 }
 
@@ -110,7 +122,7 @@ function cancel() {
         exit 1
     fi
 
-    local json=$(running-builds $repo)
+    local json=$(running-or-queued-builds $repo)
     local len=$(echo $json | _jq 'length')
 
     if [ $len -gt 0 ]; then
@@ -128,7 +140,8 @@ function help() {
 Usage: stress-test $sub_command $args
 
 Subcommands:
-  run $repo $sha $num_of_builds_to_keep_running
+  run $repo $sha $num_of_builds
+  run-keep $repo $sha $num_of_builds_to_keep_running
   cancel $repo
 EOF
 }
@@ -140,6 +153,7 @@ fi
 
 case $command in
     run ) run ;;
+    run-keep ) run-keep ;;
     cancel  ) cancel  ;;
     * ) help ;;
 esac
