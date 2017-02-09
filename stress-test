@@ -60,7 +60,7 @@ function run() {
         exit 1
     fi
 
-    echo "Start stress test"
+    echo "Start stress testing at $(date +%Y%m%d-%H-%M-%S)"
 
     for i in $(eval echo "{1..$num}"); do
         post-build $repo $sha
