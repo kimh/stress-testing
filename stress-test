@@ -5,6 +5,7 @@ set -e
 stress_test_branch=circleci-stress-testing-201701
 check_interval=30
 wait_after_run=10
+limit=20
 
 command=$1
 arg1=$2
@@ -33,7 +34,7 @@ function running-or-queued-builds() {
 
     curl --silent \
          -u ${CIRCLE_TOKEN}: \
-         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch | _jq 'map(select(.status == "running" or .status == "queued"))'
+         https://circleci.com/api/v1/project/$repo/tree/$stress_test_branch&limit=20 | _jq 'map(select(.status == "running" or .status == "queued"))'
 }
 
 function count-running-or-queued-builds() {
@@ -41,7 +42,6 @@ function count-running-or-queued-builds() {
 
     running-or-queued-builds $repo | _jq 'length'
 }
-
 
 function run() {
     local repo=$arg1
