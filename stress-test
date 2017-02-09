@@ -6,6 +6,7 @@ stress_test_branch=circleci-stress-testing-201701
 check_interval=30
 wait_after_run=10
 limit=20
+max_num_builds=10
 
 command=$1
 arg1=$2
@@ -60,6 +61,11 @@ function run() {
 
     if [ -z $num ]; then
         echo "You need to specify number of builds to run"
+        exit 1
+    fi
+
+    if [ $num -gt $max_num_builds ]; then
+        echo "You wanted to run $num builds but the number is too large and risky. If this is really what you want, override \$max_num_builds env var in the script."
         exit 1
     fi
 
